@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = 'LQ-Assistant-Android'
+rootProject.name = 'Hack Game LPT'
 include ':app'
