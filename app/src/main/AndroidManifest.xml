@@ -18,7 +18,7 @@
     <application
         android:allowBackup="false"
         android:icon="@drawable/ic_launcher"
-        android:label="LQ Assistant"
+        android:label="LPT - Liên Quân & Free Fire"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
 
