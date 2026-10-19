@@ -31,6 +31,7 @@ public class MainActivity extends Activity {
     private TextView statusView;
     private LinearLayout content;
     private boolean startAfterPermission = false;
+    private boolean waitingForOverlaySettings = false;
 
     private final int bg = Color.rgb(16, 11, 28);
     private final int card = Color.rgb(28, 19, 39);
@@ -68,13 +69,23 @@ public class MainActivity extends Activity {
         super.onResume();
         updateStatus();
 
-        if (startAfterPermission && hasUsageAccess()) {
+        if (waitingForOverlaySettings) {
+            waitingForOverlaySettings = false;
             startAfterPermission = false;
 
-            if (hasNotificationPermission()) {
-                startMonitorService();
+            if (hasNotificationPermission() && hasUsageAccess() && hasOverlayPermission()) {startMonitorService();
+            } else {Toast.makeText(this,"Hãy cấp đủ quyền rồi bấm Bắt đầu nhận diện game.",Toast.LENGTH_LONG).show();}
+            return;
+        }
+
+        if (startAfterPermission && hasUsageAccess()) {
+            if (!hasNotificationPermission()) {
+                startAfterPermission = false;
+                Toast.makeText(this, "Chưa có quyền thông báo.",Toast.LENGTH_LONG).show();
+            } else if (!hasOverlayPermission()) {
+                waitingForOverlaySettings = true;openOverlaySettings();
             } else {
-                Toast.makeText(this,"Chưa có quyền thông báo.",Toast.LENGTH_LONG).show();
+                startAfterPermission = false;startMonitorService();
             }
         }
     }
@@ -137,6 +148,7 @@ public class MainActivity extends Activity {
 
         addButton("① Cấp quyền truy cập sử dụng", v -> openUsageSettings());
         addButton("② Bắt đầu nhận diện game", v -> requestStartMonitor());
+        addButton("③ Cấp quyền icon menu nổi", v -> openOverlaySettings());
         addButton("Dừng nhận diện", v -> stopMonitorService());
 
         addSectionTitle("Mở game đã cài");
@@ -236,15 +248,20 @@ public class MainActivity extends Activity {
     private void requestStartMonitor() {
         if (!hasNotificationPermission()) {
             startAfterPermission = true;
-
             requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS},REQ_POST_NOTIFICATIONS);
-
             return;
         }
 
         if (!hasUsageAccess()) {
             startAfterPermission = true;
             openUsageSettings();
+            return;
+        }
+
+        if (!hasOverlayPermission()) {
+            startAfterPermission = true;
+            waitingForOverlaySettings = true;
+            openOverlaySettings();
             return;
         }
 
@@ -305,6 +322,30 @@ public class MainActivity extends Activity {
         }
     }
 
+    private boolean hasOverlayPermission() {
+        return Build.VERSION.SDK_INT < Build.VERSION_CODES.M
+                || Settings.canDrawOverlays(this);
+    }
+
+    private void openOverlaySettings() {
+        if (hasOverlayPermission()) {
+            Toast.makeText(this, "Quyền icon nổi đã được cấp.",
+                    Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        try {
+            Intent intent = new Intent(
+                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    Uri.parse("package:" + getPackageName())
+            );
+            startActivity(intent);
+        } catch (Exception e) {
+            Toast.makeText(this, "Không mở được cài đặt quyền icon nổi.",
+                    Toast.LENGTH_LONG).show();
+        }
+    }
+
     private void launchGame(String packageName) {
         PackageManager pm = getPackageManager();
         Intent launch = pm.getLaunchIntentForPackage(packageName);
@@ -342,6 +383,10 @@ public class MainActivity extends Activity {
         if (!hasUsageAccess()) {
             startAfterPermission = true;
             openUsageSettings();
+        } else if (!hasOverlayPermission()) {
+            startAfterPermission = true;
+            waitingForOverlaySettings = true;
+            openOverlaySettings();
         } else {
             startAfterPermission = false;
             startMonitorService();
