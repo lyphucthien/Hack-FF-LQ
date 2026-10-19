@@ -17,7 +17,7 @@
 
     <application
         android:allowBackup="false"
-        android:icon="@drawable/LPT"
+        android:icon="@drawable/lpt"
         android:label="LPT - Liên Quân & Free Fire"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
