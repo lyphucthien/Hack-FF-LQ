@@ -22,7 +22,7 @@ jobs:
           java-version: '17'
 
       - name: Install Android SDK packages
-        uses: android-actions/setup-android@v4
+        uses: android-actions/setup-android@v3
 
       - name: Install Android platform and build tools
         run: sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
@@ -38,7 +38,7 @@ jobs:
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: LQ-Assistant-APK
+          name: LPT Hack FF-LQ
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
