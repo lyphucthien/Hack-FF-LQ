@@ -38,14 +38,18 @@ public class MainActivity extends Activity {
     private final int white = Color.rgb(248, 245, 255);
     private final int muted = Color.rgb(198, 187, 211);
 
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
         selectedGame = getIntent().getStringExtra("selectedGame");
-        if (selectedGame == null) selectedGame = "";
-        if ("lq".equals(selectedGame)) page = "lq";
-        if ("ff".equals(selectedGame)) page = "ff";
+        if (selectedGame == null) {selectedGame = "";}
+        if ("lq".equals(selectedGame)) {page = "lq";}
+        else if ("ff".equals(selectedGame)) {page = "ff";}
+
         render();
+        requestPermissionsOnFirstLaunch();
     }
 
     @Override
@@ -63,9 +67,15 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         updateStatus();
+
         if (startAfterPermission && hasUsageAccess()) {
             startAfterPermission = false;
-            startMonitorService();
+
+            if (hasNotificationPermission()) {
+                startMonitorService();
+            } else {
+                Toast.makeText(this,"Chưa có quyền thông báo.",Toast.LENGTH_LONG).show();
+            }
         }
     }
 
@@ -224,18 +234,44 @@ public class MainActivity extends Activity {
     }
 
     private void requestStartMonitor() {
+        if (!hasNotificationPermission()) {
+            startAfterPermission = true;
+
+            requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS},REQ_POST_NOTIFICATIONS);
+
+            return;
+        }
+
         if (!hasUsageAccess()) {
             startAfterPermission = true;
-            Toast.makeText(this, "Bật quyền Usage Access, rồi quay lại app.", Toast.LENGTH_LONG).show();
             openUsageSettings();
             return;
         }
-        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-            startAfterPermission = true;
-            requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, REQ_POST_NOTIFICATIONS);
+
+        startAfterPermission = false;
+        startMonitorService();
+    }
+
+    private void requestPermissionsOnFirstLaunch() {
+        android.content.SharedPreferences prefs =
+                getSharedPreferences("state", MODE_PRIVATE);
+
+        if (prefs.getBoolean("first_permission_flow_done", false)) {
             return;
         }
-        startMonitorService();
+
+        prefs.edit()
+                .putBoolean("first_permission_flow_done", true)
+                .apply();
+
+        requestStartMonitor();
+    }
+
+    private boolean hasNotificationPermission() {
+        return Build.VERSION.SDK_INT < 33
+                || checkSelfPermission(
+                        Manifest.permission.POST_NOTIFICATIONS
+                ) == PackageManager.PERMISSION_GRANTED;
     }
 
     private void startMonitorService() {
@@ -284,12 +320,34 @@ public class MainActivity extends Activity {
     }
 
     @Override
-    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+    public void onRequestPermissionsResult(int requestCode,String[] permissions,int[] grantResults) 
+    {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == REQ_POST_NOTIFICATIONS) {
-            if (hasUsageAccess()) startMonitorService();
-            else updateStatus();
+
+        if (requestCode != REQ_POST_NOTIFICATIONS) {
+            return;
         }
+
+        boolean granted = hasNotificationPermission();
+
+        if (!granted) {
+            startAfterPermission = false;
+
+            Toast.makeText(this,"Hãy cấp quyền thông báo để dùng tính năng nhận diện game.",Toast.LENGTH_LONG).show();
+
+            updateStatus();
+            return;
+        }
+
+        if (!hasUsageAccess()) {
+            startAfterPermission = true;
+            openUsageSettings();
+        } else {
+            startAfterPermission = false;
+            startMonitorService();
+        }
+
+        updateStatus();
     }
 
     private TextView label(String text, int sp, int color, boolean bold) {
